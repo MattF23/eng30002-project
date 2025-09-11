@@ -208,59 +208,6 @@ class YOLO_GUI:
         # --- update display --- 
         self.on_class_filter_change()
 
-    def upload_image(self):
-        self.stop_camera()
-        self.stop_video()
-        file_path = filedialog.askopenfilename(filetypes=[("Image Files", "*.jpg *.jpeg *.png")])
-        if not file_path:
-            return
-        
-        self.current_image_path = file_path
-        self.current_frame = None
-        
-        # --- get image without filtering
-        annotated_img, results = annotate_image(file_path)
-        self.current_results = results
-        
-        # --- extract detected class names --- 
-        detected_classes = set()
-        if results and results.boxes:
-            for box in results.boxes:
-                cls_id = int(box.cls[0])
-                class_name = model.names[cls_id]
-                detected_classes.add(class_name)
-        
-        # --- update checkboxes --- 
-        self.update_class_checkboxes(detected_classes)
-        
-        self.display_image(annotated_img)
-        self.display_detections(results)
-    
-    def upload_video(self):
-        self.stop_camera()
-        self.stop_video()
-        file_path = filedialog.askopenfilename(filetypes=[("Video Files", "*.mp4 *.MOV *.AVI")])
-        if not file_path:
-            return
-        
-        # Initialize video capture
-        self.video_cap = cv2.VideoCapture(file_path)
-        self.total_frames = int(self.video_cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        self.video_fps = self.video_cap.get(cv2.CAP_PROP_FPS)
-        
-        # Enable video controls
-        self.play_pause_button.config(state=tk.NORMAL)
-        self.stop_video_button.config(state=tk.NORMAL)
-        
-        # Reset playback state
-        self.video_playing = False
-        self.video_paused = False
-        self.current_frame_num = 0
-        
-        # Load first frame
-        self.seek_to_frame(0)
-        
-        print(f"Video loaded: {self.total_frames} frames at {self.video_fps} FPS")
 
     def toggle_video_playback(self):
         if not self.video_cap:
@@ -288,11 +235,11 @@ class YOLO_GUI:
         self.current_image_path = None
         self.current_frame = None
 
-    def seek_video(self, value):
+    """def seek_video(self, value):
         if not self.video_cap:
             return
         frame_num = int(value)
-        self.seek_to_frame(frame_num)
+        self.seek_to_frame(frame_num)"""
 
     def seek_to_frame(self, frame_num):
         if not self.video_cap:
