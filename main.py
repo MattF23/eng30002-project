@@ -136,6 +136,8 @@ class YOLO_GUI:
 
         #Threashold for warning the user
         self.threashold = 30
+        self.frames = 0
+        self.warnings = 0
 
         # Camera
         self.cap = None
@@ -334,7 +336,15 @@ class YOLO_GUI:
                 frame_count += 1#increment count if no eyes are detected
 
             if frame_count > self.threashold:
-                warn()
+                self.warnings += 1
+                warn(self.warnings)
+            
+            if self.frames == 150:
+                self.frames = 0
+                frame_count = 0
+                """Program only checks for amount of time with
+                eyes closed per 5 seconds.
+                Therefore frame_count resets every 150 frames (30fps)"""
             
             # ---  update checkboxes if new classes detected --- 
             current_checkbox_classes = set(self.class_vars.keys())
@@ -355,6 +365,8 @@ class YOLO_GUI:
             if sleep_time > 0 and self.limit_fps:
                 time.sleep(sleep_time)
             print("Frame count is: ", frame_count)
+            
+            self.frames += 1
             
 
         self.stop_camera()

@@ -1,8 +1,13 @@
 import time
 
-def warn():
+def warn(warnings):
     """
     Function that will warn the driver of impending doom.
     TODO
     """
-    print("Warning!")
+    if warnings == 1:
+        print("Warning!")
+    elif warnings == 2:
+        print("Warning!!")
+    else:
+        print("Warning!!!")
