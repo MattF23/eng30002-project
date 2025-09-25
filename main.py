@@ -6,6 +6,7 @@ from ultralytics import YOLO
 import threading
 import time
 from warn import warn
+import torch
 #import numpy as np
 #from inference_mp4 import annotate_video
 
@@ -337,7 +338,11 @@ class YOLO_GUI:
 
             if frame_count > self.threashold:
                 self.warnings += 1
-                warn(self.warnings)
+                #warn(self.warnings)
+                #Thread
+                threading.Thread(target=warn(self.warnings), daemon=False).run()
+                self.frames = 0
+                frame_count = 0
             
             if self.frames == 150:
                 self.frames = 0
