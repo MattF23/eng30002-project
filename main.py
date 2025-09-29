@@ -136,9 +136,12 @@ class YOLO_GUI:
         self.text_area.config(yscrollcommand=scrollbar.set)
 
         #Threashold for warning the user
-        self.threashold = 30
+        self.threashold = 30#Default values
+        self.time_limit = 150
         self.frames = 0
         self.warnings = 0
+
+        self.set_limit = False#False until time limit is set. Then true until program stops.
 
         # Camera
         self.cap = None
@@ -344,7 +347,7 @@ class YOLO_GUI:
                 self.frames = 0
                 frame_count = 0
             
-            if self.frames == 150:
+            if self.frames == self.time_limit:
                 self.frames = 0
                 frame_count = 0
                 """Program only checks for amount of time with
@@ -366,11 +369,20 @@ class YOLO_GUI:
             self.display_detections(results)
             delta_time = time.perf_counter() - frame_start
             sleep_time = self.frame_duration - delta_time
+
+            self.threashold = 1 / self.frame_duration
         
             if sleep_time > 0 and self.limit_fps:
                 time.sleep(sleep_time)
             print("Frame count is: ", frame_count)
             
+            if self.set_limit == False:
+                self.time_limit = self.threashold * 5
+                print("Threashold set at " + str(self.time_limit) + " frames.")
+                print("We are running at " + str(self.threashold) + " fps.")
+
+                self.set_limit = True
+
             self.frames += 1
             
 
