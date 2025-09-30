@@ -8,9 +8,9 @@ def warn(warnings = 1):
     #Implementation
 
     if warnings ==  1:
-        play_tone(261, 1)
+        play_tone(261, 0.5)
     elif warnings == 2:
-        play_tone(196, 750)
+        play_tone(196, 1)
     elif warnings >= 3:
         play_tone(220, 1000)
     else:
