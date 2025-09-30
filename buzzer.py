@@ -4,7 +4,7 @@ from time import sleep
 # Use BCM pin 18
 buzzer = PWMOutputDevice(18)
 
-# Notes (Hz)
+"""# Notes (Hz)
 C4 = 261
 G3 = 196
 A3 = 220
@@ -24,10 +24,11 @@ melody = [C4, G3, G3, A3, G3, 0, B3, C4]
 note_durations = [400, 200, 200, 400, 400, 400, 400, 400]
 
 # Pause between notes (milliseconds)
-pause_duration = 300
+pause_duration = 300"""
 
 def play_tone(frequency, duration):
     """Play a tone on the buzzer."""
+    print("Buzzing!")
     if frequency == 0:
         # Pause (no sound)
         sleep(duration)
@@ -37,7 +38,7 @@ def play_tone(frequency, duration):
     sleep(duration)
     buzzer.value = 0 # stop tone
 
-try:
+"""try:
     while True:
         for i in range(len(melody)):
             freq = melody[i]
@@ -48,4 +49,4 @@ try:
 except KeyboardInterrupt:
     buzzer.off()
     print("Buzzer stopped.")
-
+"""
