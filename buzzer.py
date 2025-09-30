@@ -39,7 +39,7 @@ def play_tone(frequency, duration):
     buzzer.value = 0 # stop tone
 
     buzzer.off()
-
+    print("Buzzer off!")
     return
 
 """try:
