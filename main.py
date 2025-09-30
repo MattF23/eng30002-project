@@ -295,6 +295,8 @@ class YOLO_GUI:
             time.sleep(frame_duration)
 
     def start_camera(self):
+        self.warnings = 0
+        self.frames = 0
         if self.running:
             return
         self.stop_video()
