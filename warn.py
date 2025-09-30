@@ -1,4 +1,6 @@
 from buzzer import play_tone
+from gpiozero import RGBLED
+from colorzero import Color
 
 def warn(warnings = 1):
     """
@@ -7,11 +9,15 @@ def warn(warnings = 1):
     """
     #Implementation
 
+    led = RGBLED(23, 24, 22)
+
     if warnings ==  1:
+        led.blink(0.1, 0.1, n=10)
         play_tone(261, 0.5)
+        led.off()
     elif warnings == 2:
         play_tone(196, 1)
     elif warnings >= 3:
-        play_tone(220, 1000)
+        play_tone(220, 2)
     else:
         return
