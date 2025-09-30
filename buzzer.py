@@ -38,6 +38,10 @@ def play_tone(frequency, duration):
     sleep(duration)
     buzzer.value = 0 # stop tone
 
+    buzzer.off()
+
+    return
+
 """try:
     while True:
         for i in range(len(melody)):
