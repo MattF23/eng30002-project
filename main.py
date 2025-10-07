@@ -1,12 +1,11 @@
 import tkinter as tk
-from tkinter import filedialog
+from time import sleep
 from PIL import Image, ImageTk
 import cv2
 from ultralytics import YOLO
 import threading
 import time
 from warn import warn
-import torch
 #import numpy as np
 #from inference_mp4 import annotate_video
 
@@ -142,6 +141,10 @@ class YOLO_GUI:
         self.warnings = 0
 
         self.set_limit = False#False until time limit is set. Then true until program stops.
+
+        #Condition for camera
+        self.state = threading.Condition()
+        self.paused = True #Heart rate function starts paused
 
         # Camera
         self.cap = None
@@ -298,12 +301,32 @@ class YOLO_GUI:
         if self.running:
             return
         self.stop_video()
-        self.running = True
+        self.running = True         
+
+        #Heart rate
+        threading.Thread(target=self.heart_rate, daemon = True).start()
+        while cv2.VideoCapture(0) is None or not cv2.VideoCapture(0).isOpened():#If the camera is not available for some reason. Start the heart rate sensor
+            self.paused = False
+            self.state.notify()
+
+
+        #once camera is available. Start the cameras!
+        self.paused = True
         self.cap = cv2.VideoCapture(0)
+
         self.stop_button.config(state=tk.NORMAL)
         self.cam_button.config(state=tk.DISABLED)
         self.current_image_path = None
         threading.Thread(target=self.camera_loop, daemon=True).start()
+
+    def heart_rate(self):
+        while True:
+            with self.state:
+                if self.paused:
+                    self.state.wait()
+                print("Checking heart rate!")
+                sleep(1)
+            self.state.release()
 
     def stop_camera(self):
         self.running = False
