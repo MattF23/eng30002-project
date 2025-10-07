@@ -1,13 +1,16 @@
 import tkinter as tk
 from time import sleep
 from PIL import Image, ImageTk
-import cv2
+import os
 from ultralytics import YOLO
 import threading
 import time
 from warn import warn
 #import numpy as np
 #from inference_mp4 import annotate_video
+
+os.environ["OPENCV_LOG_LEVEL"] = "SILENT"
+import cv2
 
 # Load YOLO model
 model = YOLO('best.pt')
@@ -305,10 +308,16 @@ class YOLO_GUI:
 
         #Heart rate
         threading.Thread(target=self.heart_rate, daemon = True).start()
-        while cv2.VideoCapture(0) is None or not cv2.VideoCapture(0).isOpened():#If the camera is not available for some reason. Start the heart rate sensor
+        if cv2.VideoCapture(0) is None or not cv2.VideoCapture(0).isOpened():#If the camera is not available for some reason. Start the heart rate sensor
+            self.state.acquire()
             self.paused = False
             self.state.notify()
+            self.state.release()
 
+        while cv2.VideoCapture(0) is None or not cv2.VideoCapture(0).isOpened():
+            sleep(1)
+
+        self.paused = True
 
         #once camera is available. Start the cameras!
         self.paused = True
@@ -326,7 +335,6 @@ class YOLO_GUI:
                     self.state.wait()
                 print("Checking heart rate!")
                 sleep(1)
-            self.state.release()
 
     def stop_camera(self):
         self.running = False
@@ -407,7 +415,13 @@ class YOLO_GUI:
                 self.set_limit = True
 
             self.frames += 1
-            
+
+        os.environ["OPENCV_LOG_LEVEL"] = "SILENT"
+
+        self.state.acquire()
+        self.paused = False
+        self.state.notify()
+        self.state.release()
 
         self.stop_camera()
 
