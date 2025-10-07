@@ -1,14 +1,16 @@
 import tkinter as tk
-from tkinter import filedialog
+from time import sleep
 from PIL import Image, ImageTk
-import cv2
+import os
 from ultralytics import YOLO
 import threading
 import time
 from warn import warn
-import torch
 #import numpy as np
 #from inference_mp4 import annotate_video
+
+os.environ["OPENCV_LOG_LEVEL"] = "SILENT"
+import cv2
 
 # Load YOLO model
 model = YOLO('best.pt')
@@ -142,6 +144,10 @@ class YOLO_GUI:
         self.warnings = 0
 
         self.set_limit = False#False until time limit is set. Then true until program stops.
+
+        #Condition for camera
+        self.state = threading.Condition()
+        self.paused = True #Heart rate function starts paused
 
         # Camera
         self.cap = None
@@ -295,17 +301,40 @@ class YOLO_GUI:
             time.sleep(frame_duration)
 
     def start_camera(self):
-        self.warnings = 0
-        self.frames = 0
         if self.running:
             return
         self.stop_video()
-        self.running = True
+        self.running = True         
+
+        #Heart rate
+        threading.Thread(target=self.heart_rate, daemon = True).start()
+        if cv2.VideoCapture(0) is None or not cv2.VideoCapture(0).isOpened():#If the camera is not available for some reason. Start the heart rate sensor
+            self.state.acquire()
+            self.paused = False
+            self.state.notify()
+            self.state.release()
+
+        while cv2.VideoCapture(0) is None or not cv2.VideoCapture(0).isOpened():
+            sleep(1)
+
+        self.paused = True
+
+        #once camera is available. Start the cameras!
+        self.paused = True
         self.cap = cv2.VideoCapture(0)
+
         self.stop_button.config(state=tk.NORMAL)
         self.cam_button.config(state=tk.DISABLED)
         self.current_image_path = None
         threading.Thread(target=self.camera_loop, daemon=True).start()
+
+    def heart_rate(self):
+        while True:
+            with self.state:
+                if self.paused:
+                    self.state.wait()
+                print("Checking heart rate!")
+                sleep(1)
 
     def stop_camera(self):
         self.running = False
@@ -386,7 +415,13 @@ class YOLO_GUI:
                 self.set_limit = True
 
             self.frames += 1
-            
+
+        os.environ["OPENCV_LOG_LEVEL"] = "SILENT"
+
+        self.state.acquire()
+        self.paused = False
+        self.state.notify()
+        self.state.release()
 
         self.stop_camera()
 
