@@ -7,7 +7,6 @@ def warn(led, buzzer, warnings = 1, frequency = 1000, duty = 0.5):
     Buzzes the buzzer a different amount of time based on the level of warning
     """
     #Implementation
-    print("Is the problem the number of warnings? ", warnings)
     if warnings ==  1:
         led.color = Color('yellow')
         led.blink(on_time = 0.05, off_time = 0.05)
