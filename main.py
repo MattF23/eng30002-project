@@ -330,13 +330,6 @@ class YOLO_GUI:
         self.current_image_path = None
         threading.Thread(target=self.camera_loop, daemon=True).start()
 
-    def beep(self, duration=0.2, frequency=1000, duty=0.5):
-        """Play a beep on the buzzer."""
-        self.buzzer.frequency = frequency
-        self.buzzer.value = duty  # duty cycle controls loudness
-        time.sleep(duration)
-        self.buzzer.value = 0
-
     def heart_rate(self):
         duration = 60
 
@@ -351,7 +344,6 @@ class YOLO_GUI:
         BUFFER_SIZE = 100
 
         led = RGBLED(23, 24, 22)
-
 
         start_time = time.time()
         hr_buffer = deque(maxlen=BUFFER_SIZE)
@@ -385,27 +377,19 @@ class YOLO_GUI:
 
                         elif REGULAR_MAX < avg_hr <= 100:
                             print(f"Heartbeat slightly high ({avg_hr:.1f} BPM)")
-                            led.color = Color('yellow')
-                            led.blink(on_time=0.5, off_time=0.5)
-                            self.beep(duration=0.1, frequency=800, duty=0.3)
+                            threading.Thread(target=warn(self.warnings), daemon=False).run()
 
                         elif 100 < avg_hr <= 120:
                             print(f"ALERT: Heartbeat high ({avg_hr:.1f} BPM)")
-                            led.color = Color('orange')
-                            led.blink(on_time=0.3, off_time=0.3)
-                            self.beep(duration=0.15, frequency=1200, duty=0.6)
+                            threading.Thread(target=warn(self.warnings), daemon=False).run()
 
                         elif avg_hr > 120:
                             print(f"DANGER: Heartbeat very high! ({avg_hr:.1f} BPM)")
-                            led.color = Color('red')
-                            led.blink(on_time=0.1, off_time=0.1)
-                            self.beep(duration=0.2, frequency=1600, duty=1.0)
+                            threading.Thread(target=warn(self.warnings), daemon=False).run()
 
                         else:
                             print(f"Low HR or invalid ({avg_hr:.1f} BPM)")
-                            led.color = Color('blue')
-                            led.blink(on_time=1, off_time=1)
-                            self.beep(duration=0.1, frequency=600, duty=0.2)
+                            threading.Thread(target=warn(self.warnings), daemon=False).run()
 
                     else:
                         print("No valid readings yet")

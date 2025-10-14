@@ -1,8 +1,8 @@
 from buzzer import play_tone
-from gpiozero import RGBLED
-from colorzero import Color
+from gpiozero import RGBLED, PWMOutputDevice
+from time import sleep
 
-def warn(warnings = 1):
+def warn(warnings = 1, duration = 0.2, frequency = 1000, duty = 0.5):
     """
     Function that will warn the driver of impending doom.
     Buzzes the buzzer a different amount of time based on the level of warning
@@ -10,18 +10,31 @@ def warn(warnings = 1):
     #Implementation
 
     led = RGBLED(23, 24, 22)
+    buzzer = PWMOutputDevice(18)
 
     if warnings ==  1:
-        led.blink(0.1, 0.1, n=3)
-        play_tone(261, 0.5)
+        led.color('yellow')
+        led.blink(on_time = 0.5, off_time = 0.5)
+        buzzer.frequency = frequency
+        buzzer.value = duty
+        sleep(duration)
+        buzzer.value = 0
         led.off()
     elif warnings == 2:
-        led.blink(0.1, 0.1, n = 3)
-        play_tone(196, 1)
+        led.color('orange')
+        led.blink(on_time = 0.3, off_time = 0.3)
+        buzzer.frequency = 1200
+        buzzer.value = 0.6
+        sleep(0.15)
+        buzzer.vale = 0
         led.off()
     elif warnings >= 3:
-        led.blink(0.1, 0.1, n = 3)
-        play_tone(220, 2)
+        led.color('red')
+        led.blink(on_time = 0.1, off_time = 0.1)
+        buzzer.frequency = 1600
+        buzzer.value = 1.0
+        sleep(0.2)
+        buzzer.value = 0
         led.off()
     else:
         return
