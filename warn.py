@@ -1,13 +1,13 @@
 from time import sleep
 from colorzero import Color
 
-def warn(led, buzzer, warnings = 1, duration = 0.2, frequency = 1000, duty = 0.5):
+def warn(led, buzzer, warnings = 1, frequency = 1000, duty = 0.5):
     """
     Function that will warn the driver of impending doom.
     Buzzes the buzzer a different amount of time based on the level of warning
     """
     #Implementation
-
+    print("Is the problem here?")
     if warnings ==  1:
         led.color = Color('yellow')
         led.blink(on_time = 0.05, off_time = 0.05)

@@ -375,19 +375,19 @@ class YOLO_GUI:
 
                         elif REGULAR_MAX < avg_hr <= 100:
                             print(f"Heartbeat slightly high ({avg_hr:.1f} BPM)")
-                            threading.Thread(target=warn(self.led, self.buzzer, self.warnings), daemon=False).run()
+                            threading.Thread(target=warn(self.led, self.buzzer, self.warnings), daemon=True).run()
 
                         elif 100 < avg_hr <= 120:
                             print(f"ALERT: Heartbeat high ({avg_hr:.1f} BPM)")
-                            threading.Thread(target=warn(self.led, self.buzzer, self.warnings), daemon=False).run()
+                            threading.Thread(target=warn(self.led, self.buzzer, self.warnings), daemon=True).run()
 
                         elif avg_hr > 120:
                             print(f"DANGER: Heartbeat very high! ({avg_hr:.1f} BPM)")
-                            threading.Thread(target=warn(self.led, self.buzzer, self.warnings), daemon=False).run()
+                            threading.Thread(target=warn(self.led, self.buzzer, self.warnings), daemon=True).run()
 
                         else:
                             print(f"Low HR or invalid ({avg_hr:.1f} BPM)")
-                            threading.Thread(target=warn(self.led, self.buzzer, self.warnings), daemon=False).run()
+                            threading.Thread(target=warn(self.led, self.buzzer, self.warnings), daemon=True).run()
 
                     else:
                         print("No valid readings yet")
