@@ -157,8 +157,6 @@ class YOLO_GUI:
         self.target_fps = 30
         self.frame_duration = 1.0/self.target_fps
 
-        self.buzzer = PWMOutputDevice(18)
-
         # Video playback variables
         self.video_cap = None
         self.video_playing = False
