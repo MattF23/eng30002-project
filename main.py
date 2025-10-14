@@ -6,6 +6,12 @@ from ultralytics import YOLO
 import threading
 import time
 from warn import warn
+import max30102
+import hrcalc
+import time
+from collections import deque
+from gpiozero import PWMOutputDevice, RGBLED
+from colorzero import Color
 #import numpy as np
 #from inference_mp4 import annotate_video
 
@@ -75,13 +81,7 @@ class YOLO_GUI:
         self.canvas = tk.Canvas(self.left_frame, width=700, height=500)
         self.canvas.pack()
 
-        # Buttons
-        #self.upload_button = tk.Button(self.left_frame, text="Upload Image", command=self.upload_image)
-        #self.upload_button.pack(side=tk.LEFT, padx=5, pady=10)
-
-        #self.upload_video_button = tk.Button(self.left_frame, text="Upload Video", command=self.upload_video)
-        #self.upload_video_button.pack(side=tk.LEFT, padx=5, pady=10)
-
+        #Buttons
         self.cam_button = tk.Button(self.left_frame, text="Start Camera", command=self.start_camera)
         self.cam_button.pack(side=tk.LEFT, padx=5)
 
@@ -156,6 +156,8 @@ class YOLO_GUI:
         self.limit_fps = False
         self.target_fps = 30
         self.frame_duration = 1.0/self.target_fps
+
+        self.buzzer = PWMOutputDevice(18)
 
         # Video playback variables
         self.video_cap = None
@@ -328,13 +330,89 @@ class YOLO_GUI:
         self.current_image_path = None
         threading.Thread(target=self.camera_loop, daemon=True).start()
 
+    def beep(self, duration=0.2, frequency=1000, duty=0.5):
+        """Play a beep on the buzzer."""
+        self.buzzer.frequency = frequency
+        self.buzzer.value = duty  # duty cycle controls loudness
+        time.sleep(duration)
+        self.buzzer.value = 0
+
     def heart_rate(self):
+        duration = 60
+
+        # Initialize sensor
+        m = max30102.MAX30102()
+
+        # Heart rate thresholds
+        REGULAR_MIN = 55
+        REGULAR_MAX = 90
+
+        # Rolling buffer length for ~5 seconds (adjust if sample rate differs)
+        BUFFER_SIZE = 100
+
+        led = RGBLED(23, 24, 22)
+
+
+        start_time = time.time()
+        hr_buffer = deque(maxlen=BUFFER_SIZE)
+        next_check_time = start_time + 1
+
         while True:
             with self.state:
                 if self.paused:
                     self.state.wait()
-                print("Checking heart rate!")
-                sleep(1)
+                now = time.time()
+                elapsed = now - start_time
+                if elapsed > duration:
+                    break
+
+                # Read sensor
+                red, ir = m.read_sequential()
+                hr, hr_valid, spo2, spo2_valid = hrcalc.calc_hr_and_spo2(ir, red)
+
+                if hr_valid:
+                    hr_buffer.append(hr)
+
+                # Every second, check rolling 5s average readings
+                if now >= next_check_time:
+                    if hr_buffer:
+                        avg_hr = sum(hr_buffer) / len(hr_buffer)
+
+                        if REGULAR_MIN <= avg_hr <= REGULAR_MAX:
+                            print(f"Heartbeat is normal ({avg_hr:.1f} BPM)")
+                            led.off()
+                            self.buzzer.off()
+
+                        elif REGULAR_MAX < avg_hr <= 100:
+                            print(f"Heartbeat slightly high ({avg_hr:.1f} BPM)")
+                            led.color = Color('yellow')
+                            led.blink(on_time=0.5, off_time=0.5)
+                            self.beep(duration=0.1, frequency=800, duty=0.3)
+
+                        elif 100 < avg_hr <= 120:
+                            print(f"ALERT: Heartbeat high ({avg_hr:.1f} BPM)")
+                            led.color = Color('orange')
+                            led.blink(on_time=0.3, off_time=0.3)
+                            self.beep(duration=0.15, frequency=1200, duty=0.6)
+
+                        elif avg_hr > 120:
+                            print(f"DANGER: Heartbeat very high! ({avg_hr:.1f} BPM)")
+                            led.color = Color('red')
+                            led.blink(on_time=0.1, off_time=0.1)
+                            self.beep(duration=0.2, frequency=1600, duty=1.0)
+
+                        else:
+                            print(f"Low HR or invalid ({avg_hr:.1f} BPM)")
+                            led.color = Color('blue')
+                            led.blink(on_time=1, off_time=1)
+                            self.beep(duration=0.1, frequency=600, duty=0.2)
+
+                    else:
+                        print("No valid readings yet")
+
+                    next_check_time += 1
+
+                time.sleep(0.05)
 
     def stop_camera(self):
         self.running = False
