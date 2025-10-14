@@ -344,8 +344,6 @@ class YOLO_GUI:
         # Rolling buffer length for ~5 seconds (adjust if sample rate differs)
         BUFFER_SIZE = 100
 
-        led = RGBLED(23, 24, 22)
-
         start_time = time.time()
         hr_buffer = deque(maxlen=BUFFER_SIZE)
         next_check_time = start_time + 1
@@ -374,8 +372,6 @@ class YOLO_GUI:
 
                         if REGULAR_MIN <= avg_hr <= REGULAR_MAX:
                             print(f"Heartbeat is normal ({avg_hr:.1f} BPM)")
-                            led.off()
-                            self.buzzer.off()
 
                         elif REGULAR_MAX < avg_hr <= 100:
                             print(f"Heartbeat slightly high ({avg_hr:.1f} BPM)")

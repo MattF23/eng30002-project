@@ -22,7 +22,7 @@ def warn(led, buzzer, warnings = 1, duration = 0.2, frequency = 1000, duty = 0.5
         buzzer.frequency = 1200
         buzzer.value = 0.6
         sleep(0.4)
-        buzzer.vale = 0
+        buzzer.value = 0
         led.off()
     elif warnings >= 3:
         led.color = Color('red')
