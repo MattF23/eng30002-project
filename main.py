@@ -359,6 +359,7 @@ class YOLO_GUI:
                 if elapsed > duration:
                     break
 
+                print("Checking heart rate")
                 # Read sensor
                 red, ir = m.read_sequential()
                 hr, hr_valid, spo2, spo2_valid = hrcalc.calc_hr_and_spo2(ir, red)

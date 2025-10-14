@@ -1,5 +1,5 @@
-from gpiozero import RGBLED, PWMOutputDevice
 from time import sleep
+from colorzero import Color
 
 def warn(led, buzzer, warnings = 1, duration = 0.2, frequency = 1000, duty = 0.5):
     """
@@ -9,27 +9,27 @@ def warn(led, buzzer, warnings = 1, duration = 0.2, frequency = 1000, duty = 0.5
     #Implementation
 
     if warnings ==  1:
-        led.color('yellow')
-        led.blink(on_time = 0.5, off_time = 0.5)
+        led.color = Color('yellow')
+        led.blink(on_time = 0.05, off_time = 0.05)
         buzzer.frequency = frequency
         buzzer.value = duty
-        sleep(duration)
+        sleep(0.2)
         buzzer.value = 0
         led.off()
     elif warnings == 2:
-        led.color('orange')
-        led.blink(on_time = 0.3, off_time = 0.3)
+        led.color = Color('orange')
+        led.blink(on_time = 0.1, off_time = 0.1)
         buzzer.frequency = 1200
         buzzer.value = 0.6
-        sleep(0.15)
+        sleep(0.4)
         buzzer.vale = 0
         led.off()
     elif warnings >= 3:
-        led.color('red')
+        led.color = Color('red')
         led.blink(on_time = 0.1, off_time = 0.1)
         buzzer.frequency = 1600
         buzzer.value = 1.0
-        sleep(0.2)
+        sleep(0.6)
         buzzer.value = 0
         led.off()
     else:
