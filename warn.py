@@ -1,4 +1,3 @@
-from buzzer import play_tone
 from gpiozero import RGBLED, PWMOutputDevice
 from time import sleep
 
@@ -9,8 +8,8 @@ def warn(warnings = 1, duration = 0.2, frequency = 1000, duty = 0.5):
     """
     #Implementation
 
-    led = RGBLED(23, 24, 22)
-    buzzer = PWMOutputDevice(18)
+    led = RGBLED(23, 24, 25)
+    buzzer = PWMOutputDevice(21)
 
     if warnings ==  1:
         led.color('yellow')
