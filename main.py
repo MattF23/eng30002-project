@@ -143,6 +143,9 @@ class YOLO_GUI:
         self.frames = 0
         self.warnings = 0
 
+        self.led = RGBLED(22, 24, 25)
+        self.buzzer = PWMOutputDevice(21)
+
         self.set_limit = False#False until time limit is set. Then true until program stops.
 
         #Condition for camera
@@ -375,19 +378,19 @@ class YOLO_GUI:
 
                         elif REGULAR_MAX < avg_hr <= 100:
                             print(f"Heartbeat slightly high ({avg_hr:.1f} BPM)")
-                            threading.Thread(target=warn(self.warnings), daemon=False).run()
+                            threading.Thread(target=warn(self.led, self.buzzer, self.warnings), daemon=False).run()
 
                         elif 100 < avg_hr <= 120:
                             print(f"ALERT: Heartbeat high ({avg_hr:.1f} BPM)")
-                            threading.Thread(target=warn(self.warnings), daemon=False).run()
+                            threading.Thread(target=warn(self.led, self.buzzer, self.warnings), daemon=False).run()
 
                         elif avg_hr > 120:
                             print(f"DANGER: Heartbeat very high! ({avg_hr:.1f} BPM)")
-                            threading.Thread(target=warn(self.warnings), daemon=False).run()
+                            threading.Thread(target=warn(self.led, self.buzzer, self.warnings), daemon=False).run()
 
                         else:
                             print(f"Low HR or invalid ({avg_hr:.1f} BPM)")
-                            threading.Thread(target=warn(self.warnings), daemon=False).run()
+                            threading.Thread(target=warn(self.led, self.buzzer, self.warnings), daemon=False).run()
 
                     else:
                         print("No valid readings yet")
@@ -434,7 +437,7 @@ class YOLO_GUI:
                 self.warnings += 1
                 #warn(self.warnings)
                 #Thread
-                threading.Thread(target=warn(self.warnings), daemon=False).run()
+                threading.Thread(target=warn(self.led, self.buzzer, self.warnings), daemon=False).run()
                 self.frames = 0
                 frame_count = 0
             
