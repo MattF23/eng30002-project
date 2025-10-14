@@ -138,7 +138,7 @@ class YOLO_GUI:
         self.text_area.config(yscrollcommand=scrollbar.set)
 
         #Threashold for warning the user
-        self.threashold = 30#Default values
+        self.threashold = 15#Default values
         self.time_limit = 150
         self.frames = 0
         self.warnings = 0
@@ -461,7 +461,7 @@ class YOLO_GUI:
             delta_time = time.perf_counter() - frame_start
             sleep_time = self.frame_duration - delta_time
 
-            self.threashold = 1 / self.frame_duration
+            self.threashold = 1 / 2 * self.frame_duration
         
             if sleep_time > 0 and self.limit_fps:
                 time.sleep(sleep_time)
