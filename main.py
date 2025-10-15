@@ -6,12 +6,11 @@ from ultralytics import YOLO
 import threading
 import time
 from warn import warn
-import max30102
-import hrcalc
+from MAX30102 import MAX30102
+from helpers import *
+import numpy as np
 import time
-from collections import deque
 from gpiozero import PWMOutputDevice, RGBLED
-from colorzero import Color
 #import numpy as np
 #from inference_mp4 import annotate_video
 
@@ -143,7 +142,7 @@ class YOLO_GUI:
         self.frames = 0
         self.warnings = 0
 
-        self.led = RGBLED(22, 24, 25)
+        self.led = RGBLED(23, 24, 25)
         self.buzzer = PWMOutputDevice(21)
 
         self.set_limit = False#False until time limit is set. Then true until program stops.
@@ -332,69 +331,59 @@ class YOLO_GUI:
         threading.Thread(target=self.camera_loop, daemon=True).start()
 
     def heart_rate(self):
-        duration = 60
-
-        # Initialize sensor
-        m = max30102.MAX30102()
-
-        # Heart rate thresholds
-        REGULAR_MIN = 55
-        REGULAR_MAX = 90
-
-        # Rolling buffer length for ~5 seconds (adjust if sample rate differs)
+        print("Starting MAX30102 with EMA smoothing and RGB LED + buzzer...")
+        sensor = MAX30102()
+        ir_buf, red_buf = [], []
+        fs = 25
         BUFFER_SIZE = 100
 
-        start_time = time.time()
-        hr_buffer = deque(maxlen=BUFFER_SIZE)
-        next_check_time = start_time + 1
+        # EMA constants
+        HR_EMA_ALPHA = 0.2
+        SPO2_EMA_ALPHA = 0.2
+        hr_ema = None
+        spo2_ema = None
 
         while True:
             with self.state:
                 if self.paused:
                     self.state.wait()
-                now = time.time()
-                elapsed = now - start_time
-                if elapsed > duration:
-                    break
+                n = sensor.get_data_present()
+            while n > 0:
+                red, ir = sensor.read_fifo()
+                red_buf.append(red)
+                ir_buf.append(ir)
+                if len(ir_buf) > BUFFER_SIZE:
+                    ir_buf.pop(0)
+                    red_buf.pop(0)
+                n -= 1
 
-                print("Checking heart rate")
-                # Read sensor
-                red, ir = m.read_sequential()
-                hr, hr_valid, spo2, spo2_valid = hrcalc.calc_hr_and_spo2(ir, red)
+            if len(ir_buf) == BUFFER_SIZE:
+                ir_mean, ir_std = np.mean(ir_buf), np.std(ir_buf)
+                if ir_mean < 50000 + 0.5 * ir_std:
+                    print("No finger detected.")
+                else:
+                    hr, spo2 = calc_hr_and_spo2(ir_buf, red_buf, fs=fs)
+                    if not np.isnan(hr):
+                        # Apply EMA smoothing
+                        hr_ema = hr if hr_ema is None else (1 - HR_EMA_ALPHA) * hr_ema + HR_EMA_ALPHA * hr
+                        spo2_ema = spo2 if spo2_ema is None else (1 - SPO2_EMA_ALPHA) * spo2_ema + SPO2_EMA_ALPHA * spo2
 
-                if hr_valid:
-                    hr_buffer.append(hr)
+                        print(f"Heart Rate: {hr_ema:.1f} BPM | SpO2: {spo2_ema:.1f}%")
 
-                # Every second, check rolling 5s average readings
-                if now >= next_check_time:
-                    if hr_buffer:
-                        avg_hr = sum(hr_buffer) / len(hr_buffer)
-
-                        if REGULAR_MIN <= avg_hr <= REGULAR_MAX:
-                            print(f"Heartbeat is normal ({avg_hr:.1f} BPM)")
-
-                        elif REGULAR_MAX < avg_hr <= 100:
-                            print(f"Heartbeat slightly high ({avg_hr:.1f} BPM)")
-                            threading.Thread(target=warn(self.led, self.buzzer, 1), daemon=True).run()
-
-                        elif 100 < avg_hr <= 120:
-                            print(f"ALERT: Heartbeat high ({avg_hr:.1f} BPM)")
-                            threading.Thread(target=warn(self.led, self.buzzer, 2), daemon=True).run()
-
-                        elif avg_hr > 120:
-                            print(f"DANGER: Heartbeat very high! ({avg_hr:.1f} BPM)")
+                        # LED + Buzzer feedback
+                        if hr_ema > 120:
                             threading.Thread(target=warn(self.led, self.buzzer, 3), daemon=True).run()
-
-                        else:
-                            print(f"Low HR or invalid ({avg_hr:.1f} BPM)")
-                            threading.Thread(target=warn(self.led, self.buzzer, self.warnings), daemon=True).run()
-
+                            print("ALERT: Very high heart rate!")
+                        elif hr_ema > 100:
+                            threading.Thread(target=warn(self.led, self.buzzer, 2), daemon=True).run()
+                            print("Warning: High heart rate.")
+                        elif hr_ema < 50:
+                            threading.Thread(target=warn(self.led, self.buzzer, 1), daemon=True).run()
+                            print("Warning: Low heart rate.")
                     else:
-                        print("No valid readings yet")
+                        print("Waiting for stable signal...")
 
-                    next_check_time += 1
-
-                time.sleep(0.05)
+            time.sleep(1)
 
     def stop_camera(self):
         self.running = False
