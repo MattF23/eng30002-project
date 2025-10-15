@@ -348,42 +348,42 @@ class YOLO_GUI:
                 if self.paused:
                     self.state.wait()
                 n = sensor.get_data_present()
-            while n > 0:
-                red, ir = sensor.read_fifo()
-                red_buf.append(red)
-                ir_buf.append(ir)
-                if len(ir_buf) > BUFFER_SIZE:
-                    ir_buf.pop(0)
-                    red_buf.pop(0)
-                n -= 1
+                while n > 0:
+                    red, ir = sensor.read_fifo()
+                    red_buf.append(red)
+                    ir_buf.append(ir)
+                    if len(ir_buf) > BUFFER_SIZE:
+                        ir_buf.pop(0)
+                        red_buf.pop(0)
+                    n -= 1
 
-            if len(ir_buf) == BUFFER_SIZE:
-                ir_mean, ir_std = np.mean(ir_buf), np.std(ir_buf)
-                if ir_mean < 50000 + 0.5 * ir_std:
-                    print("No finger detected.")
-                else:
-                    hr, spo2 = calc_hr_and_spo2(ir_buf, red_buf, fs=fs)
-                    if not np.isnan(hr):
-                        # Apply EMA smoothing
-                        hr_ema = hr if hr_ema is None else (1 - HR_EMA_ALPHA) * hr_ema + HR_EMA_ALPHA * hr
-                        spo2_ema = spo2 if spo2_ema is None else (1 - SPO2_EMA_ALPHA) * spo2_ema + SPO2_EMA_ALPHA * spo2
-
-                        print(f"Heart Rate: {hr_ema:.1f} BPM | SpO2: {spo2_ema:.1f}%")
-
-                        # LED + Buzzer feedback
-                        if hr_ema > 120:
-                            threading.Thread(target=warn(self.led, self.buzzer, 3), daemon=True).run()
-                            print("ALERT: Very high heart rate!")
-                        elif hr_ema > 100:
-                            threading.Thread(target=warn(self.led, self.buzzer, 2), daemon=True).run()
-                            print("Warning: High heart rate.")
-                        elif hr_ema < 50:
-                            threading.Thread(target=warn(self.led, self.buzzer, 1), daemon=True).run()
-                            print("Warning: Low heart rate.")
+                if len(ir_buf) == BUFFER_SIZE:
+                    ir_mean, ir_std = np.mean(ir_buf), np.std(ir_buf)
+                    if ir_mean < 50000 + 0.5 * ir_std:
+                        print("No finger detected.")
                     else:
-                        print("Waiting for stable signal...")
+                        hr, spo2 = calc_hr_and_spo2(ir_buf, red_buf, fs=fs)
+                        if not np.isnan(hr):
+                            # Apply EMA smoothing
+                            hr_ema = hr if hr_ema is None else (1 - HR_EMA_ALPHA) * hr_ema + HR_EMA_ALPHA * hr
+                            spo2_ema = spo2 if spo2_ema is None else (1 - SPO2_EMA_ALPHA) * spo2_ema + SPO2_EMA_ALPHA * spo2
 
-            time.sleep(1)
+                            print(f"Heart Rate: {hr_ema:.1f} BPM | SpO2: {spo2_ema:.1f}%")
+
+                            # LED + Buzzer feedback
+                            if hr_ema > 120:
+                                threading.Thread(target=warn(self.led, self.buzzer, 3), daemon=True).run()
+                                print("ALERT: Very high heart rate!")
+                            elif hr_ema > 100:
+                                threading.Thread(target=warn(self.led, self.buzzer, 2), daemon=True).run()
+                                print("Warning: High heart rate.")
+                            elif hr_ema < 50:
+                                threading.Thread(target=warn(self.led, self.buzzer, 1), daemon=True).run()
+                                print("Warning: Low heart rate.")
+                        else:
+                            print("Waiting for stable signal...")
+
+                time.sleep(1)
 
     def stop_camera(self):
         self.running = False
