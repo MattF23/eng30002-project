@@ -6,8 +6,9 @@ from ultralytics import YOLO
 import threading
 import time
 from warn import warn
-#import numpy as np
-#from inference_mp4 import annotate_video
+from heart import heart_rate
+from camera import camera_loop
+from helpers import *
 
 os.environ["OPENCV_LOG_LEVEL"] = "SILENT"
 import cv2
@@ -20,43 +21,10 @@ def annotate_image(image_path, visible_classes=None):
     results = model(image_path)
     if visible_classes is not None:
         # --- get filtered classes --- 
-        filtered_result = filter_results(results[0], visible_classes) 
+        filtered_result = filter_results(model, results[0], visible_classes) 
         return filtered_result.plot(), results[0] 
     return results[0].plot(), results[0]  # BGR image and detection result
 
-# Inference + annotation for frame
-def annotate_frame(frame, visible_classes=None):
-    results = model(frame)
-    if visible_classes is not None:
-        # --- get filtered classes --- 
-        filtered_result = filter_results(results[0], visible_classes)
-        return filtered_result.plot(), results[0] 
-    return results[0].plot(), results[0]  # BGR image and detection result
-
-def filter_results(result, visible_classes):
-    if not result.boxes or not visible_classes:
-        # --- empty result  --- 
-        filtered_result = result.new()
-        return filtered_result
-    
-    # --- keep track of indices --- 
-    keep_indices = []
-    for i, box in enumerate(result.boxes):
-        cls_id = int(box.cls[0])
-        class_name = model.names[cls_id]
-        if class_name in visible_classes:
-            keep_indices.append(i)
-    
-    if not keep_indices:
-        # --- empty result --- 
-        filtered_result = result.new()
-        return filtered_result
-    
-    # --- add new selected classes --- 
-    filtered_result = result.new()
-    filtered_result.boxes = result.boxes[keep_indices]
-    
-    return filtered_result
 
 class YOLO_GUI:
     def __init__(self, root):
@@ -146,8 +114,10 @@ class YOLO_GUI:
         self.set_limit = False#False until time limit is set. Then true until program stops.
 
         #Condition for camera
-        self.state = threading.Condition()
-        self.paused = True #Heart rate function starts paused
+        self.heart_state = threading.Condition()
+        self.heart_paused = True #Heart rate function starts paused
+        self.camera_state = threading.Condition()
+        self.camera_paused = True
 
         # Camera
         self.cap = None
@@ -247,12 +217,6 @@ class YOLO_GUI:
         self.current_image_path = None
         self.current_frame = None
 
-    """def seek_video(self, value):
-        if not self.video_cap:
-            return
-        frame_num = int(value)
-        self.seek_to_frame(frame_num)"""
-
     def seek_to_frame(self, frame_num):
         if not self.video_cap:
             return
@@ -264,7 +228,7 @@ class YOLO_GUI:
             
             # Apply filtering and display
             visible_classes = self.get_visible_classes()
-            annotated_frame, results = annotate_frame(frame, visible_classes)
+            annotated_frame, results = annotate_frame(model, frame, visible_classes)
             
             # Update detected classes
             detected_classes = set()
@@ -301,40 +265,32 @@ class YOLO_GUI:
             time.sleep(frame_duration)
 
     def start_camera(self):
-        if self.running:
-            return
-        self.stop_video()
-        self.running = True         
-
-        #Heart rate
-        threading.Thread(target=self.heart_rate, daemon = True).start()
-        if cv2.VideoCapture(0) is None or not cv2.VideoCapture(0).isOpened():#If the camera is not available for some reason. Start the heart rate sensor
-            self.state.acquire()
-            self.paused = False
-            self.state.notify()
-            self.state.release()
-
-        while cv2.VideoCapture(0) is None or not cv2.VideoCapture(0).isOpened():
-            sleep(1)
-
-        self.paused = True
-
-        #once camera is available. Start the cameras!
-        self.paused = True
-        self.cap = cv2.VideoCapture(0)
-
-        self.stop_button.config(state=tk.NORMAL)
-        self.cam_button.config(state=tk.DISABLED)
-        self.current_image_path = None
-        threading.Thread(target=self.camera_loop, daemon=True).start()
-
-    def heart_rate(self):
+        threading.Thread(target=heart_rate, args = ("", self), daemon = True).start()
+        threading.Thread(target=camera_loop, args = (model, self), daemon=True).start()
+        
         while True:
-            with self.state:
-                if self.paused:
-                    self.state.wait()
-                print("Checking heart rate!")
-                sleep(1)
+            if cv2.VideoCapture(0) and self.camera_paused:
+                self.cap = cv2.VideoCapture(0)
+                self.stop_button.config(state=tk.NORMAL)
+                self.cam_button.config(state=tk.DISABLED)
+                self.current_image_path = None
+
+                self.camera_state.acquire()
+                self.heart_state.acquire()
+                self.camera_paused = False
+                self.heart_paused = True
+                self.camera_state.notify()
+                self.heart_state.release()
+                self.camera_state.release()
+
+            elif cv2.VideoCapture(0) is None or not cv2.VideoCapture(0).isOpened():
+                self.heart_state.acquire()
+                self.camera_state.acquire()
+                self.heart_paused = False
+                self.camera_paused = True
+                self.heart_state.notify()
+                self.camera_state.release()
+                self.heart_state.release()
 
     def stop_camera(self):
         self.running = False
@@ -343,87 +299,6 @@ class YOLO_GUI:
             self.cap = None
         self.stop_button.config(state=tk.DISABLED)
         self.cam_button.config(state=tk.NORMAL)
-
-    def camera_loop(self):
-        all_detected_classes = set()
-        frame_count = 0#Number of frames where eyes are closed
-        
-        while self.running and self.cap.isOpened():
-            ret, frame = self.cap.read()
-            frame_start = time.perf_counter()
-            if not ret:
-                break
-            frame = cv2.flip(frame, 1)
-            self.current_frame = frame.copy()
-            
-            # --- get results and update detected classes --- 
-            visible_classes = self.get_visible_classes()
-            annotated_frame, results = annotate_frame(frame, visible_classes)
-            self.current_results = results
-            
-            # --- collect all detected classes across frames --- 
-            if results and results.boxes:
-                for box in results.boxes:
-                    cls_id = int(box.cls[0])
-                    class_name = model.names[cls_id]
-                    all_detected_classes.add(class_name)
-            else:
-                frame_count += 1#increment count if no eyes are detected
-
-            if frame_count > self.threashold:
-                self.warnings += 1
-                #warn(self.warnings)
-                #Thread
-                threading.Thread(target=warn(self.warnings), daemon=False).run()
-                self.frames = 0
-                frame_count = 0
-            
-            if self.frames == self.time_limit:
-                self.frames = 0
-                frame_count = 0
-                """Program only checks for amount of time with
-                eyes closed per 5 seconds.
-                Therefore frame_count resets every 150 frames (30fps)"""
-            
-            # ---  update checkboxes if new classes detected --- 
-            current_checkbox_classes = set(self.class_vars.keys())
-            if all_detected_classes != current_checkbox_classes:
-                # Preserve current checkbox states
-                current_states = {name: var.get() for name, var in list(self.class_vars.items())}
-                self.update_class_checkboxes(all_detected_classes)
-                # --- restore previous states, new classes default to True --- 
-                for name, var in list(self.class_vars.items()):
-                    if name in current_states:
-                        var.set(current_states[name])
-            
-            self.display_image(annotated_frame)
-            self.display_detections(results)
-            delta_time = time.perf_counter() - frame_start
-            sleep_time = self.frame_duration - delta_time
-
-            self.threashold = 1 / self.frame_duration
-        
-            if sleep_time > 0 and self.limit_fps:
-                time.sleep(sleep_time)
-            print("Frame count is: ", frame_count)
-            
-            if self.set_limit == False:
-                self.time_limit = self.threashold * 5
-                print("Threashold set at " + str(self.time_limit) + " frames.")
-                print("We are running at " + str(self.threashold) + " fps.")
-
-                self.set_limit = True
-
-            self.frames += 1
-
-        os.environ["OPENCV_LOG_LEVEL"] = "SILENT"
-
-        self.state.acquire()
-        self.paused = False
-        self.state.notify()
-        self.state.release()
-
-        self.stop_camera()
 
     def display_image(self, bgr_img):
         rgb_img = cv2.cvtColor(bgr_img, cv2.COLOR_BGR2RGB)
